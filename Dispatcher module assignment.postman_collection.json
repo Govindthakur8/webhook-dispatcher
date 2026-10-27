@@ -1,0 +1,46 @@
+{
+  "info": {
+    "_postman_id": "837c2277-9bdb-4429-9b9f-0402159d64e5",
+    "name": "Dispatcher module assignment",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "55838529"
+  },
+  "item": [
+    {
+      "name": "/api/webhooks/dispatch",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"destinationUrl\": \"https://httpbin.org/post\",\n    \"eventId\": \"evt-postman-001\",\n    \"payload\": {\n        \"message\": \"Testing webhook from Postman\",\n        \"source\": \"postman\"\n    }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://webhook-dispatcher-9yjm.onrender.com/api/webhooks/dispatch",
+          "protocol": "https",
+          "host": [
+            "webhook-dispatcher-9yjm",
+            "onrender",
+            "com"
+          ],
+          "path": [
+            "api",
+            "webhooks",
+            "dispatch"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}
