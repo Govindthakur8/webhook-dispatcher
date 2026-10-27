@@ -2,53 +2,74 @@
 
 A Node.js and PostgreSQL-based webhook dispatcher that accepts webhook events, queues them for asynchronous delivery, retries failed deliveries with exponential backoff, and applies per-destination rate limiting.
 
+**Live Deployment:** https://webhook-dispatcher-9yjm.onrender.com
+
 ## Features
 
 - REST API for submitting webhook events.
-- Asynchronous delivery using a background worker.
+- Asynchronous webhook delivery using a background worker.
 - PostgreSQL-backed job queue.
-- Retry handling for HTTP 5xx, HTTP 429, and network/timeout errors.
-- Exponential retry backoff: 2, 4, and 8 seconds.
+- Automatic retries for HTTP 5xx, HTTP 429, network, and timeout errors.
+- Exponential retry backoff with delays of 2, 4, and 8 seconds.
 - Delivery-attempt logging with HTTP status and error details.
-- Per-destination rate limiting.
+- Per-destination-host rate limiting.
 - Health-check endpoint.
 - Request validation and structured API responses.
+- Database schema management using migrations.
+- Postman collection for API testing.
 
 ## Tech Stack
 
-- Node.js
-- Express
-- PostgreSQL
-- `pg` for database access
-- `node-pg-migrate` for database migrations
+- **Runtime:** Node.js
+- **Backend:** Express.js
+- **Database:** PostgreSQL
+- **Database Client:** `pg`
+- **Migrations:** `node-pg-migrate`
+- **Testing:** Node.js built-in test runner
+- **Deployment:** Render
 
 ## Prerequisites
 
-- Node.js
+- Node.js and npm
 - PostgreSQL
-- npm
+- Git
 
-## Setup
+## Getting Started
 
-Clone the repository:
+### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/Govindthakur8/webhook-dispatcher.git
 cd webhook-dispatcher
+```
+
+### 2. Install Dependencies
+
+```bash
 npm install
 ```
 
-Create a `.env` file in the project root using `.env.example` as a reference. Configure the PostgreSQL connection details and the required environment variables.
+### 3. Configure Environment Variables
 
-Run database migrations:
+Create a `.env` file in the project root using `.env.example` as a reference.
+
+Configure the required PostgreSQL connection details and application settings according to the environment configuration supported by the project.
+
+Do not commit `.env` files, database passwords, or other secrets to GitHub.
+
+### 4. Run Database Migrations
+
+Make sure PostgreSQL is running and the configured database exists.
 
 ```bash
 npm run db:migrate
 ```
 
-## Run Locally
+This applies pending database migrations.
 
-Start the API:
+## Running Locally
+
+Start the API server:
 
 ```bash
 npm run dev
@@ -60,34 +81,70 @@ Start the background worker in a separate terminal:
 npm run worker
 ```
 
-The API runs on port `3000` by default.
+The API uses port `3000` by default, unless overridden by the application configuration.
 
-## API Endpoints
+The API and worker must use the same PostgreSQL database.
+
+## Live Deployment
+
+The application is deployed on Render.
+
+**Base URL:** https://webhook-dispatcher-9yjm.onrender.com
+
+The deployed service runs database migrations before starting the application. The API and background worker run within the deployed service.
 
 ### Health Check
 
-```http
-GET /health
-```
-
-Example:
+**Endpoint:** `GET /health`
 
 ```bash
-curl http://localhost:3000/health
+curl --location 'https://webhook-dispatcher-9yjm.onrender.com/health'
 ```
 
-### Dispatch a Webhook
-
-```http
-POST /api/webhooks/dispatch
-Content-Type: application/json
-```
-
-Request body:
+Example response:
 
 ```json
 {
-  "destinationUrl": "https://example.com/webhook",
+  "status": "ok",
+  "service": "webhook-dispatcher"
+}
+```
+
+## API Documentation
+
+### 1. Health Check
+
+**Method:** `GET`
+
+**Path:** `/health`
+
+Checks whether the API is responding.
+
+Local URL:
+
+```text
+http://localhost:3000/health
+```
+
+Live URL:
+
+```text
+https://webhook-dispatcher-9yjm.onrender.com/health
+```
+
+### 2. Dispatch a Webhook
+
+**Method:** `POST`
+
+**Path:** `/api/webhooks/dispatch`
+
+**Content-Type:** `application/json`
+
+#### Request Body
+
+```json
+{
+  "destinationUrl": "https://httpbin.org/post",
   "eventId": "evt_001",
   "payload": {
     "event": "user.signup",
@@ -96,15 +153,44 @@ Request body:
 }
 ```
 
-Example using curl:
+| Field | Description |
+|---|---|
+| `destinationUrl` | URL of the destination that will receive the webhook |
+| `eventId` | Identifier for the webhook event |
+| `payload` | JSON data to send to the destination |
+
+#### cURL Example — Live API
 
 ```bash
-curl -X POST http://localhost:3000/api/webhooks/dispatch \
-  -H "Content-Type: application/json" \
-  -d '{"destinationUrl":"https://example.com/webhook","eventId":"evt_001","payload":{"event":"user.signup","userId":"usr_123"}}'
+curl --location 'https://webhook-dispatcher-9yjm.onrender.com/api/webhooks/dispatch' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "destinationUrl": "https://httpbin.org/post",
+    "eventId": "evt_postman_001",
+    "payload": {
+      "message": "Testing webhook delivery",
+      "source": "postman"
+    }
+  }'
 ```
 
-Successful response: HTTP `202 Accepted`
+#### cURL Example — Local API
+
+```bash
+curl --location 'http://localhost:3000/api/webhooks/dispatch' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "destinationUrl": "https://httpbin.org/post",
+    "eventId": "evt_local_001",
+    "payload": {
+      "message": "Testing local webhook delivery"
+    }
+  }'
+```
+
+#### Successful Response
+
+The API returns HTTP `202 Accepted` when the webhook job has been accepted and queued.
 
 ```json
 {
@@ -113,17 +199,88 @@ Successful response: HTTP `202 Accepted`
 }
 ```
 
-The API responds after queuing the job. The background worker performs the downstream HTTP request separately.
+The `jobId` identifies the queued job. A `202 Accepted` response does not itself guarantee successful downstream delivery; check the application logs and delivery-attempt records for the final result.
+
+## Postman Collection
+
+The repository includes the Postman collection:
+
+[`Dispatcher module assignment.postman_collection.json`](./Dispatcher%20module%20assignment.postman_collection.json)
+
+### Import and Run
+
+1. Clone or download this repository.
+2. Open Postman.
+3. Click **Import**.
+4. Select the `Dispatcher module assignment.postman_collection.json` file from the project root.
+5. Open the imported dispatch request.
+6. Set the request URL to the live or local endpoint.
+7. Send a valid JSON request body.
+8. Verify the queued response and check application logs for the delivery result.
+
+For the live deployment, use:
+
+```text
+POST https://webhook-dispatcher-9yjm.onrender.com/api/webhooks/dispatch
+```
+
+For local testing, use:
+
+```text
+POST http://localhost:3000/api/webhooks/dispatch
+```
 
 ## Retry Behavior
 
-Failed deliveries are retried with exponential backoff for retryable failures, including HTTP 5xx, HTTP 429, and network or timeout errors.
+The dispatcher retries eligible failed deliveries, including:
 
-The configured delays are 2, 4, and 8 seconds, with up to three retries after the initial attempt.
+- HTTP 5xx responses.
+- HTTP 429 responses.
+- Network errors.
+- Timeout errors.
+
+The configured exponential backoff delays are:
+
+| Retry | Delay |
+|---|---:|
+| First retry | 2 seconds |
+| Second retry | 4 seconds |
+| Third retry | 8 seconds |
+
+The configured policy allows up to three retries after the initial attempt, for up to four delivery attempts in total.
 
 ## Rate Limiting
 
 The worker enforces a per-destination-host rate limit of 10 requests per 60-second window.
+
+This helps control the delivery frequency to individual destination hosts.
+
+## Background Worker
+
+The background worker processes queued webhook jobs asynchronously.
+
+Its responsibilities include:
+
+1. Claiming queued jobs.
+2. Sending HTTP POST requests to destination URLs.
+3. Recording delivery attempts.
+4. Capturing HTTP status codes and error details.
+5. Scheduling retries for eligible failures.
+6. Marking successfully delivered jobs.
+
+The worker operates against the PostgreSQL-backed queue, allowing job state and delivery-attempt information to persist in the database.
+
+## Database Migrations
+
+Database schema changes are managed through `node-pg-migrate`.
+
+Run pending migrations with:
+
+```bash
+npm run db:migrate
+```
+
+Migrations are also executed during the deployed service's startup process.
 
 ## Tests
 
@@ -133,34 +290,92 @@ Run the automated test suite:
 npm test
 ```
 
+The test suite uses Node.js's built-in test runner.
+
+The local test suite has passed all five tests covering PostgreSQL connectivity, health checks, unknown routes, successful dispatch requests, and empty-request validation.
+
 ## Project Structure
 
 ```text
-src/
-  app.js
-  server.js
-  database/
-  middleware/
-  modules/
-  utils/
-  workers/
-scripts/
-tests/
+webhook-dispatcher/
+├── scripts/
+│   └── migrate.js
+├── src/
+│   ├── app.js
+│   ├── start.js
+│   ├── server.js
+│   ├── database/
+│   │   └── migrations/
+│   ├── middleware/
+│   ├── modules/
+│   │   └── webhooks/
+│   ├── utils/
+│   └── workers/
+│       └── webhook.worker.js
+├── tests/
+│   └── integration/
+├── .env.example
+├── .gitignore
+├── package.json
+├── package-lock.json
+├── Dispatcher module assignment.postman_collection.json
+└── README.md
 ```
 
 ## Architecture
 
-1. The client submits a webhook event to the dispatch API.
-2. The API validates the request and persists the job in PostgreSQL.
-3. The API returns HTTP 202 with the generated job ID.
-4. A separate background worker claims queued jobs and sends HTTP POST requests to their destinations.
-5. The worker records delivery attempts and schedules retries when applicable.
-6. A per-destination rate limiter controls delivery frequency.
+1. A client submits a webhook event to the dispatch API.
+2. The API validates the incoming request.
+3. The job is persisted in PostgreSQL.
+4. The API returns HTTP `202 Accepted` with a job ID.
+5. The background worker claims the queued job.
+6. The worker sends the webhook payload to the destination URL.
+7. Delivery attempts and their outcomes are recorded.
+8. Eligible failures are retried using exponential backoff.
+9. The worker applies per-destination-host rate limiting.
 
-## Environment Variables
+```text
+Client
+  |
+  v
+Express REST API
+  |
+  v
+Request Validation
+  |
+  v
+PostgreSQL Job Queue
+  |
+  v
+Background Worker
+  |
+  v
+Destination Webhook
+  |
+  v
+Delivery Attempt Logging
+       |
+       v
+Retry on Eligible Failure
+```
 
-See `.env.example` for the required configuration. Do not commit `.env` or real credentials.
+## Environment Variables and Security
 
-## Deployment
+Use `.env.example` to identify the environment variables required by the application.
 
-Deploy the API and background worker as separate processes/services using the same PostgreSQL database. Configure the required environment variables on the hosting platform and run database migrations before starting the services.
+- Configure database credentials through environment variables.
+- Keep real secrets out of source control.
+- Configure the production database separately from the local development database.
+- Ensure the deployed service has the correct database connection settings.
+
+## Deployment Verification
+
+The deployed application has been verified with the following successful checks:
+
+- Health endpoint returned HTTP 200.
+- Dispatch API accepted and queued a webhook job.
+- PostgreSQL-backed background worker processed the job.
+- The destination `https://httpbin.org/post` received a webhook successfully.
+- The worker logged successful delivery on attempt 1.
+
+These checks verify the successful dispatch and delivery path. Retry and other failure scenarios should be tested separately.
