@@ -1,0 +1,35 @@
+{
+  "name": "webhook-dispatcher",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --test",
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "db:migrate": "node scripts/migrate.js",
+    "worker": "node src/workers/webhook.worker.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Govindthakur8/webhook-dispatcher.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/Govindthakur8/webhook-dispatcher/issues"
+  },
+  "homepage": "https://github.com/Govindthakur8/webhook-dispatcher#readme",
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.9",
+    "express": "^5.3.0",
+    "node-pg-migrate": "^9.0.0",
+    "pg": "^8.23.1"
+  },
+  "scripts:worker": "node src/workers/webhook.worker.js"
+}
